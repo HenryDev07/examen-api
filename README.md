@@ -1,17 +1,32 @@
-# simpsonapi
+# Personajes de Los Simpson
 
-A new Flutter project.
+Aplicación Flutter que consulta personajes desde la API pública de Los Simpson. Permite buscar en la página cargada, ver detalles y guardar favoritos localmente.
 
-## Getting Started
+## Acceso de demostración
 
-This project is a starting point for a Flutter application.
+- Usuario: `RaulCooking`
+- Contraseña: `Prueba12345`
 
-A few resources to get you started if this is your first Flutter project:
+El acceso es fijo para la demostración y no reemplaza una autenticación segura.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Funcionalidades
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Catálogo paginado obtenido por HTTP desde `https://thesimpsonsapi.com/api/characters`.
+- Búsqueda local por nombre en la página actual.
+- Vista de detalle con información e imagen del personaje.
+- Favoritos persistidos localmente con SharedPreferences.
+- Estados de carga, errores con opción de reintento y sustituto visual para imágenes que no cargan.
+
+## Ejecutar y probar
+
+```sh
+flutter pub get
+flutter run
+flutter test
+```
+
+Se requiere conexión a internet para cargar el catálogo y los detalles.
+
+## Integrantes y contribuciones
+
+Completar con los nombres de los integrantes del equipo y la contribución técnica de cada uno antes de entregar el proyecto.
