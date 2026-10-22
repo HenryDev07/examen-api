@@ -20,26 +20,54 @@ class Character {
   });
 
   factory Character.fromJson(Map<String, dynamic> json) {
-    var phrasesList = json['phrases'] as List?;
-    List<String> parsedPhrases = [];
-    if (phrasesList != null) {
-      parsedPhrases = phrasesList.map((e) => e.toString()).toList();
-    }
+    final rawPhrases = json['phrases'];
+    final parsedPhrases = rawPhrases is List
+        ? rawPhrases
+              .where((phrase) => phrase != null)
+              .map((phrase) => phrase.toString())
+              .toList()
+        : rawPhrases is String
+        ? [rawPhrases]
+        : <String>[];
 
     return Character(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? 'Desconocido',
-      status: json['status'] ?? 'Desconocido',
-      occupation: json['occupation'] ?? 'Desconocido',
-      gender: json['gender'] ?? 'Desconocido',
-      age: json['age']?.toString() ?? 'Desconocido',
-      portraitPath: json['portrait_path'] ?? '',
+      id: _parseId(json['id']),
+      name: _parseText(json['name']),
+      status: _parseText(json['status']),
+      occupation: _parseText(json['occupation']),
+      gender: _parseText(json['gender']),
+      age: _parseText(json['age']),
+      portraitPath: _parseText(json['portrait_path'], fallback: ''),
       phrases: parsedPhrases,
     );
   }
 
+  static int _parseId(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static String _parseText(dynamic value, {String fallback = 'Desconocido'}) {
+    if (value == null) return fallback;
+    if (value is String && value.trim().isEmpty) return fallback;
+    return value.toString();
+  }
+
   String get imageUrl {
-    if (portraitPath.isEmpty) return '';
-    return 'https://cdn.thesimpsonsapi.com/500$portraitPath';
+    return imageUrlForSize(500);
+  }
+
+  String imageUrlForSize(int size) {
+    final path = portraitPath.trim();
+    if (path.isEmpty) return '';
+
+    final uri = Uri.tryParse(path);
+    if (uri != null && uri.hasScheme && uri.host.isNotEmpty) {
+      return uri.replace(scheme: 'https').toString();
+    }
+
+    final imagePath = path.startsWith('/') ? path.substring(1) : path;
+    return Uri.https('cdn.thesimpsonsapi.com', '/$size/$imagePath').toString();
   }
 }

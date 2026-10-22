@@ -16,15 +16,29 @@ class ApiResponse {
   });
 
   factory ApiResponse.fromJson(Map<String, dynamic> json) {
-    var list = json['results'] as List? ?? [];
-    List<Character> charactersList = list.map((i) => Character.fromJson(i)).toList();
+    final rawResults = json['results'];
+    final charactersList = rawResults is List
+        ? rawResults
+              .whereType<Map<String, dynamic>>()
+              .map(Character.fromJson)
+              .toList()
+        : <Character>[];
 
     return ApiResponse(
-      count: json['count'] ?? 0,
-      pages: json['pages'] ?? 0,
-      next: json['next'],
-      prev: json['prev'],
+      count: _parseInt(json['count']),
+      pages: _parseInt(json['pages']),
+      next: _parseLink(json['next']),
+      prev: _parseLink(json['prev']),
       results: charactersList,
     );
   }
+
+  static int _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static String? _parseLink(dynamic value) =>
+      value is String && value.isNotEmpty ? value : null;
 }
