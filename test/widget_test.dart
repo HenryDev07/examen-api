@@ -70,15 +70,72 @@ void main() {
     expect(find.text('Bart Simpson'), findsNothing);
   });
 
+  testWidgets('loads next and previous catalog pages', (
+    WidgetTester tester,
+  ) async {
+    final pageOneCharacter = _character(1, 'Homer Simpson');
+    final pageTwoCharacter = _character(2, 'Bart Simpson');
+    final apiService = _FakeApiService(
+      ApiResponse(
+        count: 2,
+        pages: 2,
+        next: 'https://thesimpsonsapi.com/api/characters?page=2',
+        results: [pageOneCharacter],
+      ),
+      pageResponses: {
+        1: ApiResponse(
+          count: 2,
+          pages: 2,
+          next: 'https://thesimpsonsapi.com/api/characters?page=2',
+          results: [pageOneCharacter],
+        ),
+        2: ApiResponse(
+          count: 2,
+          pages: 2,
+          prev: 'https://thesimpsonsapi.com/api/characters?page=1',
+          results: [pageTwoCharacter],
+        ),
+      },
+    );
+
+    await tester.pumpWidget(_testApp(apiService: apiService));
+    await tester.pumpAndSettle();
+    expect(find.text('Página 1 de 2'), findsOneWidget);
+    expect(find.text('Homer Simpson'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Página siguiente'));
+    await tester.pumpAndSettle();
+    expect(apiService.requestedPages, [1, 2]);
+    expect(find.text('Página 2 de 2'), findsOneWidget);
+    expect(find.text('Bart Simpson'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Página anterior'));
+    await tester.pumpAndSettle();
+    expect(apiService.requestedPages, [1, 2, 1]);
+    expect(find.text('Página 1 de 2'), findsOneWidget);
+    expect(find.text('Homer Simpson'), findsOneWidget);
+  });
+
   testWidgets('opens character details and returns to the catalog', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(_testApp());
+    final apiService = _FakeApiService(
+      ApiResponse(
+        count: 2,
+        pages: 1,
+        results: [
+          _character(1, 'Homer Simpson', phrases: ['D’oh!', 'Mmm...']),
+          _character(2, 'Bart Simpson'),
+        ],
+      ),
+    );
+    await tester.pumpWidget(_testApp(apiService: apiService));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Homer Simpson'));
     await tester.pumpAndSettle();
 
+    expect(apiService.requestedDetailIds, [1]);
     expect(find.text('Género'), findsOneWidget);
     expect(find.text('Edad'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Mmm...'), 200);
@@ -109,6 +166,56 @@ void main() {
     expect(find.text('Personajes de Los Simpson'), findsOneWidget);
   });
 
+  testWidgets('keeps favorites after logging out and back in', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final store = FavoritesStore(preferences: preferences);
+    final character = Character(
+      id: 1,
+      name: 'Homer Simpson',
+      status: 'Alive',
+      occupation: 'Safety inspector',
+      gender: 'Male',
+      age: '39',
+      portraitPath: '',
+      phrases: [],
+    );
+    final apiService = _FakeApiService(
+      ApiResponse(count: 1, pages: 1, results: [character]),
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => store,
+        child: MaterialApp(home: LoginScreen(apiService: apiService)),
+      ),
+    );
+
+    Future<void> logIn() async {
+      await tester.enterText(find.byType(TextFormField).at(0), 'RaulCooking');
+      await tester.enterText(find.byType(TextFormField).at(1), 'Prueba12345');
+      await tester.tap(find.text('Ingresar'));
+      await tester.pumpAndSettle();
+    }
+
+    await logIn();
+    await tester.tap(find.byTooltip('Agregar a favoritos'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Quitar de favoritos'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Cuenta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cerrar sesión'));
+    await tester.pumpAndSettle();
+    expect(find.text('Iniciar sesión'), findsOneWidget);
+
+    await logIn();
+    expect(find.byTooltip('Quitar de favoritos'), findsOneWidget);
+    expect(store.favoriteIds, {1});
+  });
+
   testWidgets('shows an error for incorrect demo login credentials', (
     WidgetTester tester,
   ) async {
@@ -128,7 +235,7 @@ void main() {
   });
 }
 
-Widget _testApp() {
+Widget _testApp({ApiService? apiService}) {
   final characters = [
     Character(
       id: 1,
@@ -156,19 +263,50 @@ Widget _testApp() {
     create: (_) => FavoritesStore(),
     child: MaterialApp(
       home: CatalogScreen(
-        apiService: _FakeApiService(
-          ApiResponse(count: characters.length, pages: 1, results: characters),
-        ),
+        apiService:
+            apiService ??
+            _FakeApiService(
+              ApiResponse(
+                count: characters.length,
+                pages: 1,
+                results: characters,
+              ),
+            ),
       ),
     ),
   );
 }
 
 class _FakeApiService extends ApiService {
-  _FakeApiService(this.response);
+  _FakeApiService(this.response, {Map<int, ApiResponse>? pageResponses})
+    : _pageResponses = pageResponses ?? {};
 
   final ApiResponse response;
+  final Map<int, ApiResponse> _pageResponses;
+  final requestedPages = <int>[];
+  final requestedDetailIds = <int>[];
 
   @override
-  Future<ApiResponse> getCharacters(int page) async => response;
+  Future<ApiResponse> getCharacters(int page) async {
+    requestedPages.add(page);
+    return _pageResponses[page] ?? response;
+  }
+
+  @override
+  Future<Character> getCharacterDetail(int id) async {
+    requestedDetailIds.add(id);
+    return response.results.firstWhere((character) => character.id == id);
+  }
 }
+
+Character _character(int id, String name, {List<String> phrases = const []}) =>
+    Character(
+      id: id,
+      name: name,
+      status: 'Alive',
+      occupation: 'Safety inspector',
+      gender: 'Male',
+      age: '39',
+      portraitPath: '',
+      phrases: phrases,
+    );

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_service.dart';
 import 'catalog_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.apiService});
+
+  final ApiService? apiService;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -33,7 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const CatalogScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => CatalogScreen(apiService: widget.apiService),
+      ),
     );
   }
 

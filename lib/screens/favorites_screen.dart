@@ -102,8 +102,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  DetailScreen(character: character),
+                              builder: (_) => DetailScreen(
+                                character: character,
+                                apiService: widget.apiService,
+                              ),
                             ),
                           );
                         },
